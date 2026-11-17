@@ -1,0 +1,52 @@
+const express = require("express");
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+const appp = express();
+const PORT = 3000;
+
+app.use(express.json());
+app.use(express.static("public"));
+
+app.get("/", (req, res) => {
+    res.redirect("/index.html");
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+app.post("/api/chat", async (req,res) => {
+    try {
+        const message = req.body.message;
+
+        if (!message || !Array.isArray(message)) {
+            return res.status(400).json({
+                error: "Messages harus berupa Array"
+            });
+        }
+
+        const response = await fetch(
+            "https://api.openrouter.ai/v1/chat/completions",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+                },
+
+                body: JSON.stringify({
+                    model: "gemini-3.8-flash",
+                    messages: message,
+                    temperature: 0.7,
+                    max_tokens: 1000,
+                    stream: true
+                })
+            }
+        );
+
+        
+    }
+});
