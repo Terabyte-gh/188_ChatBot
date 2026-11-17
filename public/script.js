@@ -1,44 +1,41 @@
-const form = document.querySelector("#chat-form");
-const promptInput = document.querySelector("#prompt");
-const messagesElement = document.querySelector("#messages");
+const chatLog = document.querySelector("#chat-log");
+const chatForm = document.querySelector("#chat-form");
+const messageInput = document.querySelector("#message-input");
 const sendButton = document.querySelector("#send-button");
-const history = [];
+const messages = [];
+let waiting = false;
 
-function addMessage(role, text = "") {
-  document.querySelector("#welcome")?.remove();
-  const article = document.createElement("article");
-  article.className = `message ${role}`;
-  const label = document.createElement("div");
-  label.className = "message-label";
-  label.textContent = role === "user" ? "Kamu" : "Gemini";
-  const body = document.createElement("div");
-  body.className = "message-body";
-  body.textContent = text;
-  article.append(label, body);
-  messagesElement.append(article);
-  messagesElement.scrollTop = messagesElement.scrollHeight;
-  return body;
+function addMessage(role, text, isError = false) {
+  const message = document.createElement("div");
+  message.className = `message ${role}`;
+  const bubble = document.createElement("div");
+  bubble.className = isError ? "bubble error" : "bubble";
+  bubble.textContent = text;
+  message.append(bubble);
+  chatLog.append(message);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return bubble;
 }
 
-form.addEventListener("submit", async (event) => {
+chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const message = promptInput.value.trim();
-  if (!message || sendButton.disabled) return;
+  const text = messageInput.value.trim();
+  if (!text || waiting) return;
 
-  promptInput.value = "";
-  promptInput.style.height = "auto";
-  history.push({ role: "user", content: message });
-  addMessage("user", message);
-  const responseBody = addMessage("assistant", "");
+  messages.push({ role: "user", content: text });
+  addMessage("user", text);
+  messageInput.value = "";
+  waiting = true;
   sendButton.disabled = true;
+  messageInput.disabled = true;
+  const reply = addMessage("bot", "");
 
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: history })
+      body: JSON.stringify({ message: messages })
     });
-
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.error || `Request gagal (${response.status})`);
@@ -48,52 +45,33 @@ form.addEventListener("submit", async (event) => {
     const decoder = new TextDecoder();
     let buffer = "";
     let answer = "";
-
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split("\n\n");
-      buffer = events.pop();
-
-      for (const eventText of events) {
-        const line = eventText.split("\n").find((entry) => entry.startsWith("data: "));
-        if (!line) continue;
-        const data = line.slice(6);
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
         if (data === "[DONE]") continue;
         try {
           answer += JSON.parse(data);
-          responseBody.textContent = answer;
-          messagesElement.scrollTop = messagesElement.scrollHeight;
-        } catch {
-          // Abaikan potongan event yang bukan JSON.
-        }
+          reply.textContent = answer;
+          chatLog.scrollTop = chatLog.scrollHeight;
+        } catch { /* Ignore incomplete SSE chunks. */ }
       }
     }
-    if (!answer) responseBody.textContent = "Gemini tidak mengirim jawaban.";
-    else history.push({ role: "assistant", content: answer });
+    if (!answer) throw new Error("Gemini tidak mengirim jawaban.");
+    messages.push({ role: "assistant", content: answer });
   } catch (error) {
-    responseBody.textContent = `Error: ${error.message}`;
+    reply.textContent = `Maaf, ${error.message}`;
+    reply.classList.add("error");
+    messages.pop();
   } finally {
+    waiting = false;
     sendButton.disabled = false;
-    promptInput.focus();
+    messageInput.disabled = false;
+    messageInput.focus();
   }
-});
-
-promptInput.addEventListener("input", () => {
-  promptInput.style.height = "auto";
-  promptInput.style.height = `${Math.min(promptInput.scrollHeight, 160)}px`;
-});
-
-promptInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    form.requestSubmit();
-  }
-});
-
-document.querySelector("#clear-chat").addEventListener("click", () => {
-  history.length = 0;
-  messagesElement.innerHTML = '<div class="welcome" id="welcome"><div class="welcome-icon">✦</div><h2>Mau ngobrol apa hari ini?</h2><p>Tulis pertanyaan atau ide kamu di bawah.</p></div>';
-  promptInput.focus();
 });
