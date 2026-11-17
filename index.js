@@ -13,9 +13,11 @@ app.get("/", (req, res) => {
     res.redirect("/index.html");
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server is running on http://localhost:${PORT}`);
+    });
+}
 
 app.post("/api/chat", async (req,res) => {
     try {
@@ -47,7 +49,7 @@ app.post("/api/chat", async (req,res) => {
         }
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-2.5-flash"}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-3.5-flash"}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
             {
                 method: "POST",
 
@@ -140,3 +142,5 @@ app.post("/api/chat", async (req,res) => {
         }
     }
 });
+
+module.exports = app;
