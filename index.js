@@ -32,7 +32,6 @@ app.post("/api/chat", async (req,res) => {
             return res.status(500).json({ error: "GEMINI_API_KEY belum disetel di file .env" });
         }
 
-        // Terima format chat OpenAI (role/content) dan ubah ke format Gemini.
         const contents = message.map((item) => {
             const role = item.role === "assistant" || item.role === "model" ? "model" : "user";
             const text = typeof item.content === "string"

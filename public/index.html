@@ -1,18 +1,40 @@
-const express = require("express");
-const dotenv = require("dotenv");
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Chatbot sederhana dengan Express.js dan Gemini API">
+  <title>Chatbot AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23111111'/><text x='50' y='68' font-size='48' text-anchor='middle' fill='white' font-family='Arial, sans-serif'>AI</text></svg>">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="chat-card">
+    <header class="chat-header">
+      <h1>Chatbot AI</h1>
+      <p> &middot; </p>
+    </header>
 
-dotenv.config();
+    <section id="chat-log" class="chat-log" aria-live="polite" aria-label="Riwayat percakapan">
+      <div class="message bot">
+        <div class="bubble">Halo! Ada yang bisa saya bantu?</div>
+      </div>
+    </section>
 
-const appp = express();
-const PORT = 3000;
+    <form id="chat-form" class="chat-form">
+      <input
+        id="message-input"
+        type="text"
+        placeholder="Ketik pesan..."
+        aria-label="Pesan"
+        maxlength="2000"
+        autocomplete="off"
+        required
+      >
+      <button type="submit" id="send-button">Kirim</button>
+    </form>
+  </main>
 
-app.use(express.json());
-app.use(express.static("public"));
-
-app.get("/", (req, res) => {
-    res.redirect("/index.html");
-});
-
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+  <script src="/app.js"></script>
+</body>
+</html>
