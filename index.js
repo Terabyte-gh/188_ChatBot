@@ -3,8 +3,8 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 
-const appp = express();
-const PORT = 3000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static("public"));
@@ -27,29 +27,48 @@ app.post("/api/chat", async (req,res) => {
             });
         }
 
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: "GEMINI_API_KEY belum disetel di file .env" });
+        }
+
+        // Terima format chat OpenAI (role/content) dan ubah ke format Gemini.
+        const contents = message.map((item) => {
+            const role = item.role === "assistant" || item.role === "model" ? "model" : "user";
+            const text = typeof item.content === "string"
+                ? item.content
+                : Array.isArray(item.parts)
+                    ? item.parts.map((part) => part.text || "").join("")
+                    : "";
+            return { role, parts: [{ text }] };
+        }).filter((item) => item.parts[0].text);
+
+        if (!contents.length) {
+            return res.status(400).json({ error: "Messages tidak berisi teks" });
+        }
+
         const response = await fetch(
-            "https://api.openrouter.ai/v1/chat/completions",
+            `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || "gemini-2.5-flash"}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
             {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
+                    "Content-Type": "application/json"
                 },
 
                 body: JSON.stringify({
-                    model: "gemini-3.8-flash",
-                    messages: message,
-                    temperature: 0.7,
-                    max_tokens: 1000,
-                    stream: true
+                    contents,
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 1000
+                    }
                 })
             }
         );
 
         if (!response.ok) {
             const errorData = await response.text();
-            console.error("OpenRouter Error:", errorData);
+            console.error("Gemini API Error:", errorData);
             return res.status(response.status).json({error: errorData});
         }
 
@@ -98,7 +117,9 @@ app.post("/api/chat", async (req,res) => {
 
                 try {
                     const json = JSON.parse(data);
-                    const content = json.choices?.[0]?.delta?.content;
+                    const content = json.candidates?.[0]?.content?.parts
+                        ?.map((part) => part.text || "")
+                        .join("");
                     if (content) {
                         res.write(`data: ${JSON.stringify(content)}\n\n`);
                     }
